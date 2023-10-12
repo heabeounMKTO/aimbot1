@@ -65,11 +65,13 @@ class AimBot:
         self.pidy_kp = 1.22
         self.pidy_kd = 0.24
         self.pidy_ki = 0.0
+        
+        #lock param and mouse listeners
         self.locking = False
         self.auto_lock = True
-        self.mouse_button_1 = "x1"
-        self.mouse_button_2 = "x1"
-        self.auto_lock_button = "middle"
+        self.mouse_button_1 = "x2"
+        self.mouse_button_2 = "x2"
+        self.auto_lock_button = "x1"
         listener = Listener(on_click=self.on_click)
         listener.start()
 
@@ -113,7 +115,7 @@ class AimBot:
             else:
                 self.locking = False
                 print("locking OFF")
-        print(f"button {button.name} pressed")
+        print(f"button {button.name} pressed\n")
 
     def init_mouse(self):
         self.pidx = PID(
