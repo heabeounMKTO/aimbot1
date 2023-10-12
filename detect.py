@@ -13,6 +13,9 @@ import cv2
 from numpy import random
 from simple_pid import PID
 from mouse_driver.MouseMove import mouse_move
+from pynput.mouse import Button, Listener
+
+
 
 def plot_one_box(x, img, color=None, label=None, line_thickness=3):
     # Plots one bounding box on image img
@@ -46,7 +49,14 @@ class AimBot:
         self.pidy_kp= 1.22
         self.pidy_kd= 0.24   
         self.pidy_ki= 0.0  
-        self.locking = False 
+        self.locking = False
+        self.auto_lock = True 
+        self.mouse_button_1 = 'x2'
+        self.mouse_button_2 = 'x2'
+        self.auto_lock_button = 'x1'
+        listener = Listener(on_click=self.on_click)
+        listener.start()
+        
     def grab_screen(self):
         return cv2.cvtColor(np.asarray(self.camera.grab(self.region)), cv2.COLOR_BGR2RGB)
      
@@ -56,6 +66,22 @@ class AimBot:
         self.camera = mss()
         self.region = {"top": self.top, "left": self.left, "width": self.detect_length, "height": self.detect_length}
     
+    def on_click(self, x, y, button, pressed):
+        if button == getattr(Button, self.auto_lock_button) and pressed:
+            if self.auto_lock:
+                self.auto_lock = False
+                print("---control off----")
+            else:
+                self.auto_lock = True
+                print("---control on----")
+        if button in [getattr(Button, self.mouse_button_1), getattr(Button, self.mouse_button_2)] and self.auto_lock:
+            if pressed:
+                self.locking = True
+                print("locking ON")
+            else:
+                self.locking = False
+                print("locking OFF") 
+        print(f"button {button.name} pressed") 
     def init_mouse(self):
         self.pidx = PID(self.pidx_kp, self.pidx_kd, self.pidx_ki, setpoint=0, sample_time=0.001,)
         self.pidy = PID(self.pidy_kp, self.pidy_kd, self.pidy_ki, setpoint=0, sample_time=0.001,)
@@ -144,7 +170,7 @@ class AimBot:
             elif move_dis <= self.max_pid_dis:
                 move_relx = self.pidx(math.atan2(-move_relx, self.detect_length) * self.detect_length)
                 move_rely = self.pidy(math.atan2(-move_rely, self.detect_length) * self.detect_length)
-            return move_relx, move_rely, move_dis 
+            return float(move_relx), float(move_rely), float(move_dis) 
         except ValueError:
             pass
     def move_dis(self, box):
