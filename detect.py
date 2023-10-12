@@ -128,8 +128,9 @@ class AimBot:
 
     def lock_target(self):
         if len(self.sorted_move_targets) > 0 and self.locking:
-            
-    
+            move_rel_x , move_rel_y, move_dis = self.get_move_dist() 
+            mouse_move(move_rel_x, move_rel_y)
+        self.pidx(0), self.pidy(0)
     def get_move_dist(self):
         try:
             nearest_target = min(self.sorted_move_targets, key = lambda x: (x['move_dist']))
