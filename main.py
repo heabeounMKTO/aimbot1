@@ -12,6 +12,6 @@ dpt.init_mouse()
 while True:
     im , detections = dpt.get_detections(source=cv2.cvtColor(dpt.grab_screen(), cv2.COLOR_BGR2RGB))
     dpt.lock_target()
-    # print(dpt.get_move_dist())
+    print(dpt.get_move_dist())
     cv2.imshow("test.png",im)
     cv2.waitKey(1)
