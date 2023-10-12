@@ -38,7 +38,7 @@ class AimBot:
         self.imgsz = imgsz
         self.max_step_dis = 120 # max movement for each iter (smoothness).
         self.max_pid_dis = 20 # enanble pid control if target distance is smaller than this distance
-        self.smooth = 0.8 # moving smoothness
+        self.smooth = 0.8 * 1920 / 1920 # moving smoothness 1920 = screen
         self.pos_factor = 0.5 #position factor, moves shit close to head.
         self.detect_length = imgsz[0]
         self.detect_center_x , self.detect_center_y = self.detect_length//2 , self.detect_length//2 
@@ -51,9 +51,9 @@ class AimBot:
         self.pidy_ki= 0.0  
         self.locking = False
         self.auto_lock = True 
-        self.mouse_button_1 = 'x2'
-        self.mouse_button_2 = 'x2'
-        self.auto_lock_button = 'x1'
+        self.mouse_button_1 = 'x1'
+        self.mouse_button_2 = 'x1'
+        self.auto_lock_button = 'middle'
         listener = Listener(on_click=self.on_click)
         listener.start()
         
