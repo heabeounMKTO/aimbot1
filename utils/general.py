@@ -428,7 +428,9 @@ def check_requirements(
     for i, r in enumerate(requirements):
         try:
             pkg.require(r)
-        except Exception:  # DistributionNotFound or VersionConflict if requirements not met
+        except (
+            Exception
+        ):  # DistributionNotFound or VersionConflict if requirements not met
             s = f"{prefix} {r} not found and is required by YOLOv5"
             if install and AUTOINSTALL:  # check environment variable
                 LOGGER.info(f"{s}, attempting auto-update...")
@@ -971,7 +973,10 @@ def segment2box(segment, width=640, height=640):
     # Convert 1 segment label to 1 box label, applying inside-image constraint, i.e. (xy1, xy2, ...) to (xyxy)
     x, y = segment.T  # segment xy
     inside = (x >= 0) & (y >= 0) & (x <= width) & (y <= height)
-    x, y, = (
+    (
+        x,
+        y,
+    ) = (
         x[inside],
         y[inside],
     )

@@ -43,7 +43,7 @@ class SingleLabelLoader:
         # labels = []
         # for shape in shapes:
         #     labels.append(shape["label"])
-        return [x["label"] for x in shapes] 
+        return [x["label"] for x in shapes]
 
 
 class MultiLabelLoader:

@@ -18,7 +18,6 @@ class RegisterNMS(object):
         onnx_model_path: str,
         precision: str = "fp32",
     ):
-
         self.graph = gs.import_onnx(onnx.load(onnx_model_path))
         assert self.graph
         LOGGER.info("ONNX graph created successfully")
