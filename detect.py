@@ -31,8 +31,9 @@ class AimBot:
         self.device = device
         self.conf = conf
         self.imgsz = imgsz
+        self.pos_factor = 0.5 #position factor, moves shit close to head.
         self.detect_length = imgsz[0]
-    
+        self.detect_center_x , self.detect_center_y = self.detect_length//2 , self.detect_length//2 
     def grab_screen(self):
         return cv2.cvtColor(np.asarray(self.camera.grab(self.region)), cv2.COLOR_BGR2RGB)
      
@@ -95,7 +96,8 @@ class AimBot:
                         .view(-1)
                         .tolist()
                     )
-                    print(conf)
+                    md = self.move_dis(xyxy)
+                    print(md) 
                     detections.append(xyxy)
                     plot_one_box(x=xyxy,img=im0, color=(255,0,0), label=f'{conf:.2f}', line_thickness=1 )
         return im0 ,detections
@@ -103,18 +105,12 @@ class AimBot:
     def get_move_dis(self, target_sort_list):
         target_info = min(target_sort_list, key=lambda x: (x['label'], x['move_dis']))
     
-    def sort_target(self, boxes, confidences, classes):
-        target_sort_list = []
-        for box, conf, cls in zip(boxes, confidences, classes):
-            label = self.args.label_list[cls]
-            x1, y1, x2, y2 = box.tolist()
-            target_x, target_y = (x1 + x2) / 2, (y1 + y2) / 2 - self.args.pos_factor * (y2 - y1)
-            move_dis = ((target_x - self.detect_center_x) ** 2 + (target_y - self.detect_center_y) ** 2) ** (1 / 2)
-            if label in self.args.enemy_list and conf >= self.args.conf and move_dis < self.args.max_lock_dis:
-                target_info = {'target_x': target_x, 'target_y': target_y, 'move_dis': move_dis, 'label': label, 'conf': conf}
-                target_sort_list.append(target_info)
+    def move_dis(self, box):
+        x1, y1, x2, y2 = box
+        target_x, target_y = (x1 + x2) / 2, (y1 + y2) / 2 - self.pos_factor * (y2 - y1)
+        move_dis = ((target_x - self.detect_center_x) ** 2 + (target_y - self.detect_center_y) ** 2) ** (1 / 2)
         # Sort the list by label and then by distance
-        return sorted(target_sort_list, key=lambda x: (x['label'], x['move_dis']))
+        return move_dis 
      
     def preProc(self, im0s, imgsz=640):
         """
