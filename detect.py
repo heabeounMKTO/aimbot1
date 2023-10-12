@@ -95,8 +95,7 @@ class AimBot:
                         .view(-1)
                         .tolist()
                     )
-                    sorted_ta = self.sort_target(xyxy, conf, cls)
-                    print(sorted_ta)
+                    print(conf)
                     detections.append(xyxy)
                     plot_one_box(x=xyxy,img=im0, color=(255,0,0), label=f'{conf:.2f}', line_thickness=1 )
         return im0 ,detections
