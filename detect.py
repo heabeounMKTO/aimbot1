@@ -11,6 +11,8 @@ import pyautogui
 import math
 import cv2
 from numpy import random
+from simple_pid import PID
+from mouse_driver.MouseMove import mouse_move
 
 def plot_one_box(x, img, color=None, label=None, line_thickness=3):
     # Plots one bounding box on image img
@@ -31,9 +33,20 @@ class AimBot:
         self.device = device
         self.conf = conf
         self.imgsz = imgsz
+        self.max_step_dis = 120 # max movement for each iter (smoothness).
+        self.max_pid_dis = 20 # enanble pid control if target distance is smaller than this distance
+        self.smooth = 0.8 # moving smoothness
         self.pos_factor = 0.5 #position factor, moves shit close to head.
         self.detect_length = imgsz[0]
         self.detect_center_x , self.detect_center_y = self.detect_length//2 , self.detect_length//2 
+        # magic numbers for now, init mouse related:
+        self.pidx_kp= 1.2
+        self.pidx_kd= 3.51
+        self.pidx_ki= 0.0
+        self.pidy_kp= 1.22
+        self.pidy_kd= 0.24   
+        self.pidy_ki= 0.0  
+        self.locking = False 
     def grab_screen(self):
         return cv2.cvtColor(np.asarray(self.camera.grab(self.region)), cv2.COLOR_BGR2RGB)
      
@@ -43,6 +56,11 @@ class AimBot:
         self.camera = mss()
         self.region = {"top": self.top, "left": self.left, "width": self.detect_length, "height": self.detect_length}
     
+    def init_mouse(self):
+        self.pidx = PID(self.pidx_kp, self.pidx_kd, self.pidx_ki, setpoint=0, sample_time=0.001,)
+        self.pidy = PID(self.pidy_kp, self.pidy_kd, self.pidy_ki, setpoint=0, sample_time=0.001,)
+        self.pidx(0),self.pidy(0)
+     
     def get_detections(self, source,half=False, iou_thres=0.5, max_det=100):
         """
         generic detection function, spits out raw; unsorted detections,
@@ -58,7 +76,7 @@ class AimBot:
         im = self.preProc(im0s, imgsz=self.imgsz)
 
         stride, names, pt = model.stride, model.names, model.pt
-        # model.warmup(imgsz=(1,3,*imgsz)) #runs the model through np.zeroes to warmup
+        model.warmup(imgsz=(1,3,*self.imgsz)) #runs the model through np.zeroes to warmup
         # seen, windows, dt = 0, [], [0.0, 0.0, 0.0]
         # t1 = time_sync()
 
@@ -91,25 +109,47 @@ class AimBot:
                 # seen += 1
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
                 for *xyxy, conf, cls in reversed(det[:, :6]):
-                    xywh = (
-                        (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn)
-                        .view(-1)
-                        .tolist()
-                    )
+                    # xywh = (
+                    #     (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn)
+                    #     .view(-1)
+                    #     .tolist()
+                    # )
                     md = self.move_dis(xyxy)
-                    print(md) 
-                    detections.append(xyxy)
-                    plot_one_box(x=xyxy,img=im0, color=(255,0,0), label=f'{conf:.2f}', line_thickness=1 )
-        return im0 ,detections
+                    detection_dict = {
+                        "move_dist": md,
+                        "avg_x": (xyxy[0] + xyxy[2])/ 2,
+                        "avg_y":(xyxy[1] + xyxy[3]) / 2,
+                        "cls": cls
+                    }
+                    detections.append(detection_dict)
+                    plot_one_box(x=xyxy,img=im0, color=(255,0,0), label=f'dist: {md:.2f} \n conf: {conf:.2f}', line_thickness=1 )
+        self.sorted_move_targets = sorted(detections, key = lambda x: (x['move_dist']))
+        return im0 , self.sorted_move_targets
 
-    def get_move_dis(self, target_sort_list):
-        target_info = min(target_sort_list, key=lambda x: (x['label'], x['move_dis']))
+    def lock_target(self):
+        if len(self.sorted_move_targets) > 0 and self.locking:
+            
     
+    def get_move_dist(self):
+        try:
+            nearest_target = min(self.sorted_move_targets, key = lambda x: (x['move_dist']))
+            target_x , target_y, move_dis = nearest_target['avg_x'], nearest_target['avg_y'], nearest_target['move_dist']
+            # compute relative movement distance to target.
+            move_relx = (target_x - self.detect_center_x) * self.smooth
+            move_rely = (target_y - self.detect_center_y) * self.smooth 
+            if move_dis >= self.max_step_dis:
+                move_relx = move_relx / move_dis * self.max_step_dis
+                move_rely = move_rely / move_dis * self.max_step_dis
+            elif move_dis <= self.max_pid_dis:
+                move_relx = self.pidx(math.atan2(-move_relx, self.detect_length) * self.detect_length)
+                move_rely = self.pidy(math.atan2(-move_rely, self.detect_length) * self.detect_length)
+            return move_relx, move_rely, move_dis 
+        except ValueError:
+            pass
     def move_dis(self, box):
         x1, y1, x2, y2 = box
         target_x, target_y = (x1 + x2) / 2, (y1 + y2) / 2 - self.pos_factor * (y2 - y1)
         move_dis = ((target_x - self.detect_center_x) ** 2 + (target_y - self.detect_center_y) ** 2) ** (1 / 2)
-        # Sort the list by label and then by distance
         return move_dis 
      
     def preProc(self, im0s, imgsz=640):
